@@ -45,6 +45,7 @@ class EventStateMachineStack(Stack):
                 'STRIPE_API_KEY_SECRET_NAME': config['secrets']['stripe_api_key_secret_name'] 
             }
         )
+        # Grant permissions to the Lambda function for DynamoDB read/write
         stripe_event_handler.add_to_role_policy(
             iam.PolicyStatement(
                 actions=["ssm:GetParameter"],
@@ -54,6 +55,7 @@ class EventStateMachineStack(Stack):
             )
         )
 
+        # Define the Parse Event Lambda Function
         parse_event_handler = _lambda.Function(
             self, "StripeParseEventHandler",
             runtime=_lambda.Runtime.PYTHON_3_11,
@@ -69,6 +71,7 @@ class EventStateMachineStack(Stack):
         # Grant Secrets Manager Access to Lambda Function
         secret_names = [config['secrets']['stripe_api_key_secret_name']]
         functions = [stripe_event_handler, parse_event_handler]
+        # Grant read access to the secret for each function
         for secret_name in secret_names:
             secret = secretsmanager.Secret.from_secret_name_v2(
                 self,
@@ -158,7 +161,7 @@ class EventStateMachineStack(Stack):
                     subscription_resumed_task
                 )
                 .otherwise(
-                    sfn.Pass(self, "IgnoreUnknownEvent")  # Correct usage of sfn.Pass
+                    sfn.Pass(self, "IgnoreUnknownEvent") # Ignore unknown event types
                 )
         )
 
@@ -171,6 +174,7 @@ class EventStateMachineStack(Stack):
             tracing_enabled=True
         )
 
+        # Lambda functions for the state machine
         self.lambda_functions = {
             "StripeEventHandler": stripe_event_handler,
             "ParseEventHandler": parse_event_handler

@@ -8,7 +8,6 @@ from aws_cdk import (
 from constructs import Construct
 
 class StripeEventbridgeStack(Stack):
-
     def __init__(
             self, 
             scope: Construct, 
@@ -26,6 +25,7 @@ class StripeEventbridgeStack(Stack):
             simple_name=False
         ).string_value
 
+        # Import Event Bus Name from SSM Parameters
         event_bus_name = ssm.StringParameter.from_string_parameter_attributes(
             self, "ImportedStripeEventSourceName",
             parameter_name=config['eventbridge']['event_bus_name'],
@@ -72,9 +72,11 @@ class StripeEventbridgeStack(Stack):
             description="Rule to capture Stripe subscription events from EventBridge Partner Event Source",
             event_bus_name=stripe_event_bus.event_bus_name,
             role_arn=eventbridge_role.role_arn,
-            targets=[events.CfnRule.TargetProperty(
-                id="StripeSubsStepFunctionTarget",
-                arn=state_machine.state_machine_arn,
-                role_arn=eventbridge_role.role_arn
-            )]
+            targets=[
+                events.CfnRule.TargetProperty(
+                    id="StripeSubsStepFunctionTarget",
+                    arn=state_machine.state_machine_arn,
+                    role_arn=eventbridge_role.role_arn
+                )
+            ]
         )
