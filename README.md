@@ -1,58 +1,129 @@
+# Stripe EventBridge CDK Project
 
-# Welcome to your CDK Python project!
+This repository sets up an event-driven architecture for Stripe subscription events using AWS CDK with Python. It deploys AWS Lambda functions, a Step Functions state machine, EventBridge rules, DynamoDB, and Secrets Manager to handle Stripe event data.
 
-This is a blank project for CDK development with Python.
+---
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+## 1. Environment Setup
 
-This project is set up like a standard Python project.  The initialization
-process also creates a virtualenv within this project, stored under the `.venv`
-directory.  To create the virtualenv it assumes that there is a `python3`
-(or `python` for Windows) executable in your path with access to the `venv`
-package. If for any reason the automatic creation of the virtualenv fails,
-you can create the virtualenv manually.
+### Option A: Conda
+1. Install [Anaconda](https://www.anaconda.com) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html).  
+2. Create and activate the environment:
+   ```bash
+   conda env create -f conda_env.yaml
+   conda activate <env_name>
+   ```
+3. Install any additional Python dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-To manually create a virtualenv on MacOS and Linux:
+### Option B: Python Virtualenv
+1. Create a virtual environment (Mac/Linux):
+   ```bash
+   python3 -m venv .venv
+   ```
+   On Windows:
+   ```bash
+   python -m venv .venv
+   ```
+2. Activate the virtual environment:
+   ```bash
+   source .venv/bin/activate
+   ```
+   On Windows:
+   ```bash
+   .venv\Scripts\activate.bat
+   ```
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
+---
+
+## 2. AWS Configuration
+
+Export or set your AWS credentials:
+```bash
+export AWS_ACCOUNT_ID="123456789012"
+export AWS_REGION="us-east-1"
 ```
-$ python3 -m venv .venv
-```
+Adjust these based on your environment.
 
-After the init process completes and the virtualenv is created, you can use the following
-step to activate your virtualenv.
+---
 
-```
-$ source .venv/bin/activate
-```
+## 3. Useful CDK Commands
 
-If you are a Windows platform, you would activate the virtualenv like this:
+- **List Stacks**  
+  ```bash
+  cdk ls
+  ```
+- **Synthesize**  
+  ```bash
+  cdk synth
+  ```
+- **Deploy**  
+  ```bash
+  cdk deploy
+  ```
+- **Destroy**  
+  ```bash
+  cdk destroy
+  ```
+- **Diff**  
+  ```bash
+  cdk diff
+  ```
+- **Docs**  
+  ```bash
+  cdk docs
+  ```
 
-```
-% .venv\Scripts\activate.bat
-```
+---
 
-Once the virtualenv is activated, you can install the required dependencies.
+## 4. Project Components
 
-```
-$ pip install -r requirements.txt
-```
+### 4.1 `lib/statemachine.py`
+Defines a Step Functions State Machine that interprets Stripe subscription events, branches based on event type, and invokes Lambda tasks for each scenario.
 
-At this point you can now synthesize the CloudFormation template for this code.
+### 4.2 `lib/subscriber.py`
+Creates the **StripeSubscribersTable** (DynamoDB) and stores the table name in **SSM Parameter Store**. It also grants DynamoDB read/write permissions to the Lambda functions that need access to subscriber data. Key features include:
+- **Partition Key**: `email`
+- **Time to Live Attribute**: `planned_deletion_date`
+- **Point-in-Time Recovery (PITR)** enabled
+- **Deletion Protection** enabled
+- Storage of the table name in SSM for easy parameter management
 
-```
-$ cdk synth
-```
+### 4.3 `lib/eventbridge.py`
+(If present) sets up or references EventBridge to route Stripe subscription events appropriately to the Step Functions workflow, ensuring integration between Stripe webhooks and AWS resources.
 
-To add additional dependencies, for example other CDK libraries, just add
-them to your `setup.py` file and rerun the `pip install -r requirements.txt`
-command.
+### 4.4 Lambda Functions
+Located in `lib/lambda`:
+- **`dynamo_put.lambda_handler`**: Inserts or updates subscription records in DynamoDB.  
+- **`parse_event.lambda_handler`**: Parses the raw Stripe event payload to extract relevant details for further processing.
 
-## Useful commands
+### 4.5 Stripe Layer
+Available in `lib/layers/stripe_layer.zip`, containing the Stripe library for Lambda. The script `lib/layers/setup.sh` installs / updates the layer zip file for you. The version of the stripe package is not pinned in `lib/layers/stripe_requirements.txt` and installs the latest version of the library.
 
- * `cdk ls`          list all stacks in the app
- * `cdk synth`       emits the synthesized CloudFormation template
- * `cdk deploy`      deploy this stack to your default AWS account/region
- * `cdk diff`        compare deployed stack with current state
- * `cdk docs`        open CDK documentation
+### 4.6 Secrets Manager
+Protects sensitive information (e.g. Stripe API keys). The Lambdas read from these secrets at runtime to authenticate against the Stripe API.
+
+---
+
+## 5. Local Development
+
+1. Modify code in the `lib` folder or add new resources.  
+2. Run `cdk synth` to validate CloudFormation output.  
+3. Deploy changes with `cdk deploy`.
+
+---
+
+## Contributing
+
+1. Fork or clone this repository.  
+2. Activate your environment (conda or virtualenv).  
+3. Update code or tests.  
+4. Submit a pull request or sync your changes.
 
 Enjoy!
